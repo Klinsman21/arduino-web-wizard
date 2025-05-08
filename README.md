@@ -1,73 +1,41 @@
-# Welcome to your Lovable project
 
-## Project info
+# Arduino Web Wizard - Flask Edition
 
-**URL**: https://lovable.dev/projects/c2a950c1-e36c-411a-9939-237a20d0695c
+A web-based interface for Arduino development using PlatformIO.
 
-## How can I edit this code?
+## Requirements
 
-There are several ways of editing your application.
+- Python 3.7+
+- Flask
+- pySerial
+- PlatformIO CLI (must be installed on your system)
 
-**Use Lovable**
+## Installation
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/c2a950c1-e36c-411a-9939-237a20d0695c) and start prompting.
+1. Clone this repository
+2. Install dependencies:
+   ```
+   pip install -r requirements.txt
+   ```
+3. Ensure PlatformIO CLI is installed on your system
 
-Changes made via Lovable will be committed automatically to this repo.
+## Usage
 
-**Use your preferred IDE**
+1. Run the Flask application:
+   ```
+   python app.py
+   ```
+2. Open your browser and navigate to `http://localhost:5000`
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## Features
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+- Code editing with syntax highlighting
+- Project management
+- Terminal access to PlatformIO commands
+- Serial monitor
+- Library management
 
-Follow these steps:
+## Notes
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/c2a950c1-e36c-411a-9939-237a20d0695c) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+This is a web interface that interacts with a locally installed PlatformIO CLI.
+For security reasons, this application should only be run locally and not exposed to the internet.

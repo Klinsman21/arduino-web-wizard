@@ -1,0 +1,126 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arduino Web Wizard</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <!-- Monaco Editor -->
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.34.0/min/vs/loader.js"></script>
+    <!-- XTerm.js for terminal emulation -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.1.0/css/xterm.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.1.0/lib/xterm.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="bg-gray-900 text-white min-h-screen flex flex-col">
+    <header class="bg-blue-800 p-4">
+        <h1 class="text-2xl font-bold">Arduino Web Wizard</h1>
+    </header>
+    
+    <div class="flex flex-1 overflow-hidden">
+        <!-- Project Explorer -->
+        <div class="w-64 border-r border-gray-700 bg-gray-800 p-4 overflow-auto">
+            <div class="mb-4">
+                <button id="openProjectBtn" class="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4l2 2h4a2 2 0 0 1 2 2v1M5 19h16a2 2 0 0 0 2-2v-5a2 2 0 0 0-2-2h-4l-2-2h-4a2 2 0 0 0-2 2v9z"/></svg>
+                    Open Project
+                </button>
+            </div>
+            
+            <div id="projectFiles" class="hidden mt-4">
+                <h3 class="font-semibold mb-2">Project Files</h3>
+                <ul id="filesList" class="space-y-1"></ul>
+            </div>
+            
+            <div class="mt-6 border-t border-gray-700 pt-4">
+                <div class="flex items-center justify-between w-full mb-2">
+                    <span class="font-semibold">Library Manager</span>
+                    <button id="toggleLibraryBtn" class="text-gray-300 hover:text-white">
+                        <svg id="libraryExpandIcon" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                        <svg id="libraryCollapseIcon" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+                    </button>
+                </div>
+                <div id="libraryManager" class="hidden space-y-2">
+                    <div class="flex gap-2">
+                        <input id="librarySearch" class="flex-1 bg-gray-700 text-white px-3 py-1 rounded" placeholder="Search libraries...">
+                        <button class="bg-gray-700 hover:bg-gray-600 p-1 rounded">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        </button>
+                    </div>
+                    <ul id="libraryResults" class="mt-2 space-y-1"></ul>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <div class="border-b border-gray-700">
+                <nav class="flex">
+                    <button class="tab-button active px-4 py-2" data-tab="editor">Code Editor</button>
+                    <button class="tab-button px-4 py-2" data-tab="terminal">Terminal</button>
+                    <button class="tab-button px-4 py-2" data-tab="serial">Serial Monitor</button>
+                </nav>
+            </div>
+            
+            <!-- Editor Tab -->
+            <div id="editor-tab" class="tab-content flex-1 flex flex-col">
+                <div class="bg-gray-800 px-4 py-1 text-sm text-gray-400 border-b border-gray-700" id="current-file">No file selected</div>
+                <div id="monaco-editor" class="flex-1"></div>
+            </div>
+            
+            <!-- Terminal Tab -->
+            <div id="terminal-tab" class="tab-content hidden flex-1 flex flex-col">
+                <div class="bg-gray-800 px-4 py-1 text-sm flex items-center justify-between border-b border-gray-700">
+                    <span>Terminal Output</span>
+                    <button id="refreshTerminal" class="text-gray-400 hover:text-white">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                    </button>
+                </div>
+                <div id="terminal" class="flex-1 bg-black"></div>
+            </div>
+            
+            <!-- Serial Monitor Tab -->
+            <div id="serial-tab" class="tab-content hidden flex-1 flex flex-col">
+                <div class="bg-gray-800 p-2 flex items-center gap-2 border-b border-gray-700">
+                    <label class="text-sm">Port:</label>
+                    <select id="serialPort" class="h-8 rounded bg-gray-700 border border-gray-600 px-3 py-1 text-sm">
+                        <option value="">Select a port</option>
+                    </select>
+                    <button id="connectBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 text-sm rounded" disabled>Connect</button>
+                    <button id="baudRateBtn" class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 text-sm rounded" disabled>115200</button>
+                </div>
+                <div id="serialOutput" class="flex-1 bg-black text-green-400 font-mono text-sm p-4 overflow-auto">
+                    Select a port to connect
+                </div>
+            </div>
+            
+            <!-- Action buttons -->
+            <div class="border-t border-gray-700 p-2 flex justify-between">
+                <div class="flex gap-2">
+                    <button id="compileBtn" class="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                        Compile
+                    </button>
+                    <button id="uploadBtn" class="flex items-center gap-1 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                        Upload
+                    </button>
+                    <button id="monitorBtn" class="flex items-center gap-1 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        Monitor
+                    </button>
+                </div>
+                <div>
+                    <button id="updateBtn" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded">Update All</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast notifications -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50"></div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
