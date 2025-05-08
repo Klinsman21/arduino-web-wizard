@@ -5,79 +5,94 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Arduino Web Wizard</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <!-- Monaco Editor -->
     <link rel="stylesheet" data-name="vs/editor/editor.main" href="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/editor/editor.main.min.css">
     <!-- XTerm.js for terminal emulation -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.1.0/css/xterm.css">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
-<body class="bg-gray-900 text-white">
-    <div class="flex flex-col h-screen">
+<body class="bg-dark text-light">
+    <div class="container-fluid vh-100 d-flex flex-column">
         <!-- Header -->
-        <header class="bg-gray-800 p-4 shadow-md flex justify-between items-center">
-            <div class="flex items-center">
-                <h1 class="text-xl font-bold">Arduino Web Wizard</h1>
-                <button id="openProjectBtn" class="ml-4 bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded">Open Project</button>
-            </div>
-            <div class="flex items-center space-x-2">
-                <select id="serialPortSelect" class="bg-gray-700 px-2 py-1 rounded">
-                    <option value="">Select Port</option>
-                </select>
-                <div class="flex">
-                    <button id="compileBtn" class="bg-green-600 hover:bg-green-700 px-3 py-1 rounded">Compile</button>
-                    <button id="uploadBtn" class="bg-yellow-600 hover:bg-yellow-700 px-3 py-1 rounded ml-2">Upload</button>
+        <header class="row py-3 bg-primary">
+            <div class="col d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                    <h1 class="h4 mb-0">Arduino Web Wizard</h1>
+                    <button id="openProjectBtn" class="btn btn-info btn-sm ms-3">Open Project</button>
+                </div>
+                <div class="d-flex align-items-center">
+                    <select id="serialPortSelect" class="form-select form-select-sm me-2">
+                        <option value="">Select Port</option>
+                    </select>
+                    <div class="btn-group">
+                        <button id="compileBtn" class="btn btn-success btn-sm">Compile</button>
+                        <button id="uploadBtn" class="btn btn-warning btn-sm">Upload</button>
+                    </div>
                 </div>
             </div>
         </header>
 
         <!-- Main Content -->
-        <div class="flex flex-1 overflow-hidden">
+        <div class="row flex-grow-1 overflow-hidden">
             <!-- Sidebar -->
-            <div class="w-64 bg-gray-800 border-r border-gray-700 flex flex-col">
-                <!-- Project Files -->
-                <div class="p-4 flex-1 overflow-y-auto">
-                    <h2 class="text-sm font-bold uppercase mb-2">Project Files</h2>
-                    <ul id="filesList" class="text-gray-300"></ul>
-                </div>
-
-                <!-- Libraries Section -->
-                <div class="p-4 border-t border-gray-700">
-                    <h2 class="text-sm font-bold uppercase mb-2">Libraries</h2>
-                    <div class="flex mb-2">
-                        <input type="text" id="librarySearch" class="bg-gray-700 rounded-l px-2 py-1 flex-1" placeholder="Search libraries...">
-                        <button id="searchLibBtn" class="bg-blue-600 hover:bg-blue-700 px-2 rounded-r">Search</button>
+            <div class="col-md-3 bg-secondary p-0">
+                <div class="d-flex flex-column h-100">
+                    <!-- Project Files -->
+                    <div class="p-3 flex-grow-1 overflow-auto">
+                        <h2 class="h6 text-uppercase fw-bold mb-2">Project Files</h2>
+                        <ul id="filesList" class="list-unstyled"></ul>
                     </div>
-                    <div id="libraryResults" class="mt-2 text-gray-300 max-h-40 overflow-y-auto"></div>
+
+                    <!-- Libraries Section -->
+                    <div class="p-3 border-top">
+                        <h2 class="h6 text-uppercase fw-bold mb-2">Libraries</h2>
+                        <div class="input-group input-group-sm mb-2">
+                            <input type="text" id="librarySearch" class="form-control" placeholder="Search libraries...">
+                            <button id="searchLibBtn" class="btn btn-info">Search</button>
+                        </div>
+                        <div id="libraryResults" class="mt-2 overflow-auto" style="max-height: 160px;"></div>
+                    </div>
                 </div>
             </div>
 
             <!-- Main Editor Area -->
-            <div class="flex-1 flex flex-col">
+            <div class="col-md-9 p-0 d-flex flex-column">
                 <!-- Tabs -->
-                <div class="bg-gray-800 border-b border-gray-700 flex">
-                    <button class="tab-button active px-4 py-2" data-target="editor">Code Editor</button>
-                    <button class="tab-button px-4 py-2" data-target="terminal">Terminal</button>
-                    <button class="tab-button px-4 py-2" data-target="serialMonitor">Serial Monitor</button>
-                </div>
+                <ul class="nav nav-tabs bg-dark">
+                    <li class="nav-item">
+                        <button class="nav-link active custom-tab" data-target="editor">Code Editor</button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link custom-tab" data-target="terminal">Terminal</button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link custom-tab" data-target="serialMonitor">Serial Monitor</button>
+                    </li>
+                </ul>
 
                 <!-- Content -->
-                <div class="flex-1 overflow-hidden">
+                <div class="flex-grow-1 overflow-hidden">
                     <!-- Editor -->
-                    <div id="editor" class="tab-content h-full">
-                        <div id="monaco-editor" class="h-full"></div>
+                    <div id="editor" class="tab-content h-100 active">
+                        <div id="monaco-editor" class="h-100"></div>
                     </div>
 
                     <!-- Terminal -->
-                    <div id="terminal" class="tab-content h-full bg-black">
-                        <div id="terminal-container" class="h-full"></div>
+                    <div id="terminal" class="tab-content h-100 bg-black">
+                        <div id="terminal-container" class="h-100"></div>
                     </div>
 
                     <!-- Serial Monitor -->
-                    <div id="serialMonitor" class="tab-content h-full flex flex-col bg-black">
-                        <div id="serialOutput" class="flex-1 p-2 font-mono text-green-500 overflow-y-auto"></div>
-                        <div class="flex border-t border-gray-700 p-2">
-                            <input type="text" id="serialInput" class="bg-gray-700 rounded-l px-2 py-1 flex-1" placeholder="Send to device...">
-                            <button id="serialSendBtn" class="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded-r">Send</button>
+                    <div id="serialMonitor" class="tab-content h-100 d-flex flex-column bg-black">
+                        <div id="serialOutput" class="flex-grow-1 p-2 text-success overflow-auto" style="font-family: monospace;"></div>
+                        <div class="d-flex border-top p-2">
+                            <input type="text" id="serialInput" class="form-control form-control-sm me-2" placeholder="Send to device...">
+                            <button id="serialSendBtn" class="btn btn-primary btn-sm">Send</button>
                         </div>
                     </div>
                 </div>
@@ -85,15 +100,20 @@
         </div>
 
         <!-- Toast Container -->
-        <div id="toastContainer" class="fixed top-4 right-4 z-50"></div>
+        <div id="toastContainer" class="position-fixed top-0 end-0 p-3"></div>
     </div>
 
     <!-- Scripts -->
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Monaco Editor -->
     <script>var require = { paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' } };</script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/editor/editor.main.nls.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/editor/editor.main.min.js"></script>
+    <!-- XTerm -->
     <script src="https://cdn.jsdelivr.net/npm/xterm@5.1.0/lib/xterm.min.js"></script>
+    <!-- App JS -->
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>
