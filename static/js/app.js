@@ -3,26 +3,42 @@
 let editor;
 let terminal;
 let currentFile = null;
-let projectOpen = false;
-let serialConnected = false;
+let serialPort = null;
 
-// Initialize the application
-document.addEventListener('DOMContentLoaded', () => {
-    initMonacoEditor();
-    initTerminal();
-    initTabSystem();
-    initProjectExplorer();
-    initLibraryManager();
-    initSerialMonitor();
-    initActionButtons();
+// Initialize application
+document.addEventListener('DOMContentLoaded', function() {
+    initializeTabs();
+    initializeMonacoEditor();
+    initializeTerminal();
+    loadSerialPorts();
+    setupEventListeners();
+    fetchProjectFiles();
 });
 
+// Initialize tab switching
+function initializeTabs() {
+    const tabButtons = document.querySelectorAll('.tab-button');
+    const tabContents = document.querySelectorAll('.tab-content');
+    
+    tabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            // Deactivate all tabs
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            tabContents.forEach(content => content.style.display = 'none');
+            
+            // Activate selected tab
+            button.classList.add('active');
+            const target = button.getAttribute('data-target');
+            document.getElementById(target).style.display = 'flex';
+        });
+    });
+}
+
 // Initialize Monaco Editor
-function initMonacoEditor() {
-    require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.34.0/min/vs' }});
+function initializeMonacoEditor() {
     require(['vs/editor/editor.main'], function() {
         editor = monaco.editor.create(document.getElementById('monaco-editor'), {
-            value: '// Select a file to begin editing',
+            value: '// Open a file to start editing',
             language: 'cpp',
             theme: 'vs-dark',
             automaticLayout: true
@@ -31,284 +47,132 @@ function initMonacoEditor() {
 }
 
 // Initialize XTerm.js terminal
-function initTerminal() {
+function initializeTerminal() {
     terminal = new Terminal({
-        theme: {
+        cursorBlink: true,
+        theme: { 
             background: '#000000',
             foreground: '#ffffff'
-        },
-        cursorBlink: true
-    });
-    terminal.open(document.getElementById('terminal'));
-    terminal.writeln("Arduino Web Wizard initialized.");
-    terminal.writeln("Ready for commands...");
-}
-
-// Tab system
-function initTabSystem() {
-    const tabs = document.querySelectorAll('.tab-button');
-    tabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-            // Deactivate all tabs
-            tabs.forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(
-                content => content.style.display = 'none'
-            );
-            
-            // Activate selected tab
-            tab.classList.add('active');
-            document.getElementById(`${tab.dataset.tab}-tab`).style.display = 'flex';
-            
-            // Special case for Monitor button
-            if (tab.dataset.tab === 'serial') {
-                updateSerialPorts();
-            }
-        });
-    });
-}
-
-// Project Explorer
-function initProjectExplorer() {
-    const openProjectBtn = document.getElementById('openProjectBtn');
-    const projectFiles = document.getElementById('projectFiles');
-    const filesList = document.getElementById('filesList');
-
-    openProjectBtn.addEventListener('click', () => {
-        fetch('/api/project/open', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                projectOpen = true;
-                projectFiles.classList.remove('hidden');
-                showToast("Project opened", data.message);
-                
-                // Get project files
-                fetch('/api/projects/files')
-                    .then(response => response.json())
-                    .then(files => {
-                        filesList.innerHTML = '';
-                        files.forEach(file => {
-                            const li = document.createElement('li');
-                            li.textContent = file;
-                            li.addEventListener('click', () => {
-                                openFile(file);
-                                
-                                // Set active class
-                                document.querySelectorAll('#filesList li').forEach(
-                                    item => item.classList.remove('active')
-                                );
-                                li.classList.add('active');
-                            });
-                            filesList.appendChild(li);
-                        });
-                    });
-            }
-        })
-        .catch(error => {
-            console.error('Error opening project:', error);
-            showToast("Error", "Failed to open project");
-        });
-    });
-}
-
-// Library Manager
-function initLibraryManager() {
-    const toggleLibraryBtn = document.getElementById('toggleLibraryBtn');
-    const libraryManager = document.getElementById('libraryManager');
-    const expandIcon = document.getElementById('libraryExpandIcon');
-    const collapseIcon = document.getElementById('libraryCollapseIcon');
-    const librarySearch = document.getElementById('librarySearch');
-    const libraryResults = document.getElementById('libraryResults');
-
-    toggleLibraryBtn.addEventListener('click', () => {
-        if (libraryManager.classList.contains('hidden')) {
-            libraryManager.classList.remove('hidden');
-            expandIcon.classList.add('hidden');
-            collapseIcon.classList.remove('hidden');
-        } else {
-            libraryManager.classList.add('hidden');
-            expandIcon.classList.remove('hidden');
-            collapseIcon.classList.add('hidden');
         }
     });
-
-    librarySearch.addEventListener('input', debounce(() => {
-        const query = librarySearch.value;
-        if (query.length > 0) {
-            fetch(`/api/libraries/search?q=${encodeURIComponent(query)}`)
-                .then(response => response.json())
-                .then(libraries => {
-                    libraryResults.innerHTML = '';
-                    libraries.forEach(lib => {
-                        const li = document.createElement('li');
-                        li.className = 'library-item';
-                        
-                        const span = document.createElement('span');
-                        span.textContent = lib;
-                        li.appendChild(span);
-                        
-                        const button = document.createElement('button');
-                        button.className = 'install-lib-btn';
-                        button.innerHTML = `
-                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <line x1="12" y1="5" x2="12" y2="19"></line>
-                                <line x1="5" y1="12" x2="19" y2="12"></line>
-                            </svg>
-                        `;
-                        button.addEventListener('click', () => installLibrary(lib));
-                        li.appendChild(button);
-                        
-                        libraryResults.appendChild(li);
-                    });
-                });
-        } else {
-            libraryResults.innerHTML = '';
-        }
-    }, 300));
+    terminal.open(document.getElementById('terminal-container'));
+    terminal.writeln('Arduino Web Wizard Terminal');
+    terminal.writeln('Ready to execute PlatformIO commands');
+    terminal.writeln('');
 }
 
-// Serial Monitor
-function initSerialMonitor() {
-    const connectBtn = document.getElementById('connectBtn');
-    const baudRateBtn = document.getElementById('baudRateBtn');
-    const serialPortSelect = document.getElementById('serialPort');
-    const serialOutput = document.getElementById('serialOutput');
-
-    // Populate serial ports dropdown
-    updateSerialPorts();
+// Setup Event Listeners
+function setupEventListeners() {
+    // Open Project Button
+    document.getElementById('openProjectBtn').addEventListener('click', openProject);
     
-    serialPortSelect.addEventListener('change', () => {
-        connectBtn.disabled = !serialPortSelect.value;
-        baudRateBtn.disabled = !serialPortSelect.value;
+    // Compile Button
+    document.getElementById('compileBtn').addEventListener('click', () => {
+        runPlatformIOCommand('pio run');
+    });
+    
+    // Upload Button
+    document.getElementById('uploadBtn').addEventListener('click', () => {
+        const port = document.getElementById('serialPortSelect').value;
+        if (!port) {
+            showToast('Error', 'Please select a serial port', 'error');
+            return;
+        }
+        runPlatformIOCommand(`pio run --target upload --upload-port ${port}`);
+    });
+    
+    // Library Search
+    document.getElementById('searchLibBtn').addEventListener('click', searchLibraries);
+    document.getElementById('librarySearch').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') searchLibraries();
+    });
+    
+    // Serial Send Button
+    document.getElementById('serialSendBtn').addEventListener('click', sendSerialData);
+    document.getElementById('serialInput').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendSerialData();
     });
 
-    connectBtn.addEventListener('click', () => {
-        if (serialConnected) {
-            serialConnected = false;
-            connectBtn.textContent = "Connect";
-            serialOutput.textContent = "Disconnected from port";
-        } else {
-            const port = serialPortSelect.value;
-            if (port) {
-                serialConnected = true;
-                connectBtn.textContent = "Disconnect";
-                serialOutput.textContent = `Connected to ${port}\nWaiting for data...`;
-                showToast("Serial Monitor", `Connected to ${port}`);
-
-                // In a real implementation, this would actually connect to the serial port
+    // Save file shortcut (Ctrl+S)
+    document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault();
+            if (currentFile) {
+                saveCurrentFile();
             }
         }
     });
 }
 
-function updateSerialPorts() {
-    const serialPortSelect = document.getElementById('serialPort');
-    fetch('/api/ports')
+// Fetch project files
+function fetchProjectFiles() {
+    fetch('/api/projects/files')
         .then(response => response.json())
-        .then(ports => {
-            // Save current selected value
-            const currentValue = serialPortSelect.value;
+        .then(files => {
+            const filesList = document.getElementById('filesList');
+            filesList.innerHTML = '';
             
-            // Clear and rebuild options
-            serialPortSelect.innerHTML = '<option value="">Select a port</option>';
-            
-            ports.forEach(port => {
-                const option = document.createElement('option');
-                option.value = port;
-                option.textContent = port;
-                serialPortSelect.appendChild(option);
+            files.forEach(file => {
+                const li = document.createElement('li');
+                li.textContent = file;
+                li.addEventListener('click', () => openFile(file));
+                filesList.appendChild(li);
             });
-            
-            // Restore selected value if it exists in the new list
-            if (ports.includes(currentValue)) {
-                serialPortSelect.value = currentValue;
-            }
-            
-            // Update button state
-            document.getElementById('connectBtn').disabled = !serialPortSelect.value;
-            document.getElementById('baudRateBtn').disabled = !serialPortSelect.value;
         })
         .catch(error => {
-            console.error('Error fetching serial ports:', error);
+            console.error('Error fetching project files:', error);
+            showToast('Error', 'Failed to load project files', 'error');
         });
 }
 
-// Action Buttons
-function initActionButtons() {
-    const compileBtn = document.getElementById('compileBtn');
-    const uploadBtn = document.getElementById('uploadBtn');
-    const monitorBtn = document.getElementById('monitorBtn');
-    const updateBtn = document.getElementById('updateBtn');
-    const refreshTerminal = document.getElementById('refreshTerminal');
-
-    compileBtn.addEventListener('click', () => {
-        runCommand('pio run -t compile');
-    });
-
-    uploadBtn.addEventListener('click', () => {
-        runCommand('pio run -t upload');
-    });
-
-    monitorBtn.addEventListener('click', () => {
-        // Switch to serial monitor tab
-        document.querySelector('.tab-button[data-tab="serial"]').click();
-    });
-
-    updateBtn.addEventListener('click', () => {
-        runCommand('pio lib update');
-    });
-
-    refreshTerminal.addEventListener('click', () => {
-        terminal.clear();
-        terminal.writeln("Terminal cleared.");
-        terminal.writeln("Ready for commands...");
-    });
-}
-
-// Helper Functions
+// Open file
 function openFile(filename) {
-    currentFile = filename;
-    document.getElementById('current-file').textContent = filename;
-
-    fetch(`/api/file/${encodeURIComponent(filename)}`)
+    // Mark file as active in the list
+    const fileItems = document.querySelectorAll('#filesList li');
+    fileItems.forEach(item => {
+        item.classList.remove('active');
+        if (item.textContent === filename) {
+            item.classList.add('active');
+        }
+    });
+    
+    // Fetch file content
+    fetch(`/api/file/${filename}`)
         .then(response => response.json())
         .then(data => {
-            const fileExtension = filename.split('.').pop().toLowerCase();
+            currentFile = filename;
+            
+            // Determine language based on file extension
             let language = 'plaintext';
-            
-            // Set language for syntax highlighting
-            if (['cpp', 'h', 'c', 'ino'].includes(fileExtension)) {
+            if (filename.endsWith('.cpp') || filename.endsWith('.h') || filename.endsWith('.ino')) {
                 language = 'cpp';
-            } else if (fileExtension === 'py') {
+            } else if (filename.endsWith('.py')) {
                 language = 'python';
-            } else if (fileExtension === 'json') {
+            } else if (filename.endsWith('.ini')) {
+                language = 'ini';
+            } else if (filename.endsWith('.json')) {
                 language = 'json';
-            } else if (fileExtension === 'md') {
-                language = 'markdown';
             }
             
-            // Update editor model
-            if (editor) {
-                const model = editor.getModel();
-                monaco.editor.setModelLanguage(model, language);
-                editor.setValue(data.content);
-            }
+            // Update editor
+            monaco.editor.setModelLanguage(editor.getModel(), language);
+            editor.setValue(data.content);
         })
         .catch(error => {
-            console.error(`Error opening file ${filename}:`, error);
-            showToast("Error", `Failed to open file ${filename}`);
+            console.error('Error opening file:', error);
+            showToast('Error', `Failed to open ${filename}`, 'error');
         });
 }
 
+// Save current file
 function saveCurrentFile() {
-    if (!currentFile) return;
+    if (!currentFile) {
+        showToast('Error', 'No file is currently open', 'error');
+        return;
+    }
     
     const content = editor.getValue();
+    
     fetch('/api/save', {
         method: 'POST',
         headers: {
@@ -322,110 +186,203 @@ function saveCurrentFile() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showToast("File saved", `${currentFile} saved successfully`);
+            showToast('Success', data.message, 'success');
+        } else {
+            showToast('Error', data.message, 'error');
         }
     })
     .catch(error => {
-        console.error(`Error saving file ${currentFile}:`, error);
-        showToast("Error", `Failed to save file ${currentFile}`);
+        console.error('Error saving file:', error);
+        showToast('Error', 'Failed to save file', 'error');
     });
 }
 
-function runCommand(command) {
+// Run PlatformIO command
+function runPlatformIOCommand(command) {
+    // Display command in terminal
     terminal.writeln(`$ ${command}`);
-    terminal.writeln("Executing...");
+    terminal.writeln('Executing...');
     
-    // Show the terminal tab
-    document.querySelector('.tab-button[data-tab="terminal"]').click();
+    // Show terminal tab
+    document.querySelector('.tab-button[data-target="terminal"]').click();
     
+    // Send command to server
     fetch('/api/run', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-            command: command
-        })
+        body: JSON.stringify({ command })
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
             terminal.writeln(data.output);
-            showToast("Command executed", command);
+            showToast('Success', 'Command executed successfully', 'success');
         } else {
             terminal.writeln(`Error: ${data.output}`);
-            showToast("Command failed", command);
+            showToast('Error', 'Command execution failed', 'error');
         }
     })
     .catch(error => {
-        console.error(`Error executing command ${command}:`, error);
-        terminal.writeln(`Error: Failed to execute command`);
-        showToast("Error", `Failed to execute command ${command}`);
+        console.error('Error executing command:', error);
+        terminal.writeln('Error: Failed to execute command');
+        showToast('Error', 'Failed to execute command', 'error');
     });
 }
 
+// Search libraries
+function searchLibraries() {
+    const query = document.getElementById('librarySearch').value;
+    if (!query) return;
+    
+    fetch(`/api/libraries/search?q=${encodeURIComponent(query)}`)
+        .then(response => response.json())
+        .then(libraries => {
+            const resultsContainer = document.getElementById('libraryResults');
+            resultsContainer.innerHTML = '';
+            
+            if (libraries.length === 0) {
+                resultsContainer.innerHTML = '<p>No libraries found</p>';
+                return;
+            }
+            
+            libraries.forEach(lib => {
+                const div = document.createElement('div');
+                div.className = 'library-item flex justify-between items-center mb-1';
+                div.innerHTML = `
+                    <span>${lib}</span>
+                    <button class="install-lib-btn" data-lib="${lib}" title="Install Library">
+                        +
+                    </button>
+                `;
+                resultsContainer.appendChild(div);
+                
+                // Add install button event
+                div.querySelector('.install-lib-btn').addEventListener('click', () => {
+                    installLibrary(lib);
+                });
+            });
+        })
+        .catch(error => {
+            console.error('Error searching libraries:', error);
+            showToast('Error', 'Failed to search libraries', 'error');
+        });
+}
+
+// Install library
 function installLibrary(library) {
-    runCommand(`pio lib install "${library}"`);
-    showToast("Installing library", library);
+    fetch('/api/libraries/install', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ library })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Success', data.message, 'success');
+            terminal.writeln(data.output);
+        } else {
+            showToast('Error', data.message, 'error');
+            terminal.writeln(`Error: ${data.output}`);
+        }
+    })
+    .catch(error => {
+        console.error('Error installing library:', error);
+        showToast('Error', 'Failed to install library', 'error');
+    });
 }
 
-function showToast(title, message) {
-    const toastContainer = document.getElementById('toast-container');
-    
-    const toast = document.createElement('div');
-    toast.className = 'toast';
-    
-    const content = document.createElement('div');
-    
-    const titleEl = document.createElement('div');
-    titleEl.className = 'toast-title';
-    titleEl.textContent = title;
-    content.appendChild(titleEl);
-    
-    if (message) {
-        const messageEl = document.createElement('div');
-        messageEl.textContent = message;
-        content.appendChild(messageEl);
-    }
-    
-    toast.appendChild(content);
-    
-    const closeBtn = document.createElement('span');
-    closeBtn.className = 'toast-close';
-    closeBtn.innerHTML = '&times;';
-    closeBtn.addEventListener('click', () => {
-        toast.remove();
+// Load serial ports
+function loadSerialPorts() {
+    fetch('/api/ports')
+        .then(response => response.json())
+        .then(ports => {
+            const portSelect = document.getElementById('serialPortSelect');
+            portSelect.innerHTML = '<option value="">Select Port</option>';
+            
+            ports.forEach(port => {
+                const option = document.createElement('option');
+                option.value = port;
+                option.textContent = port;
+                portSelect.appendChild(option);
+            });
+        })
+        .catch(error => {
+            console.error('Error loading serial ports:', error);
+            showToast('Error', 'Failed to load serial ports', 'error');
+        });
+}
+
+// Open project
+function openProject() {
+    fetch('/api/project/open', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Success', data.message, 'success');
+            fetchProjectFiles();
+        } else {
+            showToast('Error', data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error opening project:', error);
+        showToast('Error', 'Failed to open project', 'error');
     });
-    toast.appendChild(closeBtn);
+}
+
+// Send serial data
+function sendSerialData() {
+    const input = document.getElementById('serialInput');
+    const data = input.value;
+    if (!data) return;
+    
+    // In a real implementation, this would send data to the selected serial port
+    const serialOutput = document.getElementById('serialOutput');
+    serialOutput.innerHTML += `<div class="text-blue-500">&gt; ${data}</div>`;
+    input.value = '';
+    
+    // Auto-scroll to bottom
+    serialOutput.scrollTop = serialOutput.scrollHeight;
+}
+
+// Show toast notification
+function showToast(title, message, type = 'info') {
+    const toastContainer = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    
+    // Set classes based on type
+    let borderColor = 'border-blue-500';
+    if (type === 'success') borderColor = 'border-green-500';
+    if (type === 'error') borderColor = 'border-red-500';
+    
+    toast.className = `toast ${borderColor}`;
+    toast.innerHTML = `
+        <div>
+            <div class="toast-title">${title}</div>
+            <div>${message}</div>
+        </div>
+        <span class="toast-close">&times;</span>
+    `;
     
     toastContainer.appendChild(toast);
     
-    // Auto remove after 5 seconds
+    // Add close button functionality
+    toast.querySelector('.toast-close').addEventListener('click', () => {
+        toast.remove();
+    });
+    
+    // Auto-remove after 5 seconds
     setTimeout(() => {
         toast.remove();
     }, 5000);
 }
-
-// Utility function to debounce user input
-function debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
-}
-
-// Add keyboard shortcuts
-document.addEventListener('keydown', (event) => {
-    // Ctrl+S to save
-    if (event.ctrlKey && event.key === 's') {
-        event.preventDefault();
-        if (currentFile) {
-            saveCurrentFile();
-        }
-    }
-});
